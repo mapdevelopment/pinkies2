@@ -1,4 +1,4 @@
-import cv2, time
+import cv2, serial
 import numpy as np
 from scripts.camera import Camera, IS_RASPBERRY, HEIGHT, WIDTH
 from scripts.pillar import Pillar
@@ -33,6 +33,9 @@ def get_all_objects(mask, type):
             largest_pillar = Pillar(x, y, w, h, cx, cy, area, type)
 
 frame_count = 0
+arduino_serial = serial.Serial('/dev/ttyS0', 9600, timeout= 0.1)
+arduino_serial.flush()
+
 while True:
     largest_pillar = Pillar(0, 0, 0, 0, 0, 0, 0, 0)
     img = video.get_output()
@@ -53,17 +56,21 @@ while True:
     get_all_objects(mask_red, 0)
     get_all_objects(mask_green, 1)
 
-    cv2.rectangle(img, 
-        (largest_pillar.x, largest_pillar.y), 
-        (largest_pillar.x + largest_pillar.w, largest_pillar.y + largest_pillar.h), 
-        (0, 255, 0) if largest_pillar.color == 1 else (0, 0, 255), 3)
+    if (largest_pillar.area > 100):
+        cv2.rectangle(img, 
+            (largest_pillar.x, largest_pillar.y), 
+            (largest_pillar.x + largest_pillar.w, largest_pillar.y + largest_pillar.h), 
+            (0, 255, 0) if largest_pillar.color == 1 else (0, 0, 255), 3)
     
-    # only x coordinate is important to us
-    offset_x = largest_pillar.cx - WIDTH / 2
-    distance_y = (4.5 * FOCAL_LENGTH) / (largest_pillar.w or 1)
-    distance_x = offset_x * distance_y / (FOCAL_LENGTH or 1)
-    print(largest_pillar.w, distance_y, distance_x)
+        # only x coordinate is important to us
+        offset_x = largest_pillar.cx - WIDTH / 2
+        distance_y = (4.5 * FOCAL_LENGTH) / (largest_pillar.w or 1)
+        distance_x = offset_x * distance_y / (FOCAL_LENGTH or 1)
+        output = f"{largest_pillar.color == 1},{distance_x}"
+        print(output)
+        arduino_serial.write((f"{output}\n").encode())
 
+    
     cv2.line(img, (WIDTH // 2, 0), (WIDTH // 2, HEIGHT), (255, 255, 255), 3)
 
     if not IS_RASPBERRY:

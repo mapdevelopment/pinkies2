@@ -11,5 +11,6 @@ extern float left;
 extern float right;
 
 extern float turning_angle;
+extern bool set_custom_target;
 
 #endif // STEERING_H
